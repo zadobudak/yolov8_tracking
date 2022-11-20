@@ -124,6 +124,7 @@ def run(
     curr_frames, prev_frames = [None] * nr_sources, [None] * nr_sources
     for frame_idx, (path, im, im0s, vid_cap, s) in enumerate(dataset):
         t1 = time_sync()
+        im_np = np.swapaxes(np.swapaxes(im.squeeze(), 0, 2), 0, 1)
         im = torch.from_numpy(im).to(device)
         im = im.half() if half else im.float()  # uint8 to fp16/32
         im /= 255.0  # 0 - 255 to 0.0 - 1.0
@@ -162,7 +163,7 @@ def run(
                 else:
                     txt_file_name = p.parent.name  # get folder name containing current img
                     save_path = str(save_dir / p.parent.name)  # im.jpg, vid.mp4, ...
-            curr_frames[i] = im0
+            curr_frames[i] = im_np
 
             txt_path = str(save_dir / 'tracks' / txt_file_name)  # im.txt
             s += '%gx%g ' % im.shape[2:]  # print string
@@ -175,6 +176,14 @@ def run(
                     tracker_list[i].tracker.camera_update(prev_frames[i], curr_frames[i])
 
             if det is not None and len(det):
+                
+                # pass low resolution detections to strongsort
+                t4 = time_sync()
+                #print(det.cpu().shape)
+                outputs[i] = tracker_list[i].update(det.cpu(), im_np)
+                t5 = time_sync()
+                dt[3] += t5 - t4
+                
                 # Rescale boxes from img_size to im0 size
                 det[:, :4] = scale_coords(im.shape[2:], det[:, :4], im0.shape).round()  # xyxy
 
@@ -183,14 +192,10 @@ def run(
                     n = (det[:, -1] == c).sum()  # detections per class
                     s += f"{n} {names[int(c)]}{'s' * (n > 1)}, "  # add to string
 
-                # pass detections to strongsort
-                t4 = time_sync()
-                outputs[i] = tracker_list[i].update(det.cpu(), im0)
-                t5 = time_sync()
-                dt[3] += t5 - t4
-
                 # draw boxes for visualization
                 if len(outputs[i]) > 0:
+                    outputs[i] = np.array(outputs[i])
+                    outputs[i][:, :4] = scale_coords(im.shape[2:], outputs[i][:, :4], im0.shape).round()  # xyxy
                     for j, (output, conf) in enumerate(zip(outputs[i], det[:, 4])):
     
                         bboxes = output[0:4]
