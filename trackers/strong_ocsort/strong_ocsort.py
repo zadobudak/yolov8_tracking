@@ -5,16 +5,16 @@ import torch
 import cv2
 from collections import deque
 
-from yolov5.utils.general import xyxy2xywh
+from yolov8.ultralytics.yolo.utils.ops import xyxy2xywh
 
 from ..ocsort.association import *
 from ..ocsort.kalmanfilter import KalmanFilterNew as KalmanFilter
 
-from ..strong_sort.reid_multibackend import ReIDDetectMultiBackend
-from ..strong_sort.sort import linear_assignment as strong_linear_assignment
-from ..strong_sort.sort import iou_matching
-from ..strong_sort.sort.detection import Detection
-from ..strong_sort.sort.nn_matching import NearestNeighborDistanceMetric, _cosine_distance
+from ..strongsort.reid_multibackend import ReIDDetectMultiBackend
+from ..strongsort.sort import linear_assignment as strong_linear_assignment
+from ..strongsort.sort import iou_matching
+from ..strongsort.sort.detection import Detection
+from ..strongsort.sort.nn_matching import NearestNeighborDistanceMetric, _cosine_distance
 
 def k_previous_obs(observations, cur_age, k):
     if len(observations) == 0:
