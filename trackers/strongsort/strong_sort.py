@@ -12,7 +12,7 @@ from sort.tracker import Tracker
 
 from reid_multibackend import ReIDDetectMultiBackend
 
-from yolov5.utils.general import xyxy2xywh
+from yolov8.ultralytics.yolo.utils.ops import xyxy2xywh
 
 
 class StrongSORT(object):
@@ -21,7 +21,7 @@ class StrongSORT(object):
                  device,
                  fp16,
                  max_dist=0.2,
-                 max_iou_distance=0.7,
+                 max_iou_dist=0.7,
                  max_age=70,
                  max_unmatched_preds=7,
                  n_init=3,
@@ -36,7 +36,7 @@ class StrongSORT(object):
         metric = NearestNeighborDistanceMetric(
             "cosine", self.max_dist, nn_budget)
         self.tracker = Tracker(
-            metric, max_iou_distance=max_iou_distance, max_age=max_age, n_init=n_init, max_unmatched_preds=max_unmatched_preds)
+            metric, max_iou_dist=max_iou_dist, max_age=max_age, n_init=n_init, max_unmatched_preds=max_unmatched_preds, mc_lambda=mc_lambda, ema_alpha=ema_alpha)
 
     def camera_update(self, previous_img, current_img):
         self.tracker.camera_update(previous_img, current_img)

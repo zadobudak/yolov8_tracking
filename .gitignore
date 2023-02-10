@@ -20,8 +20,5 @@ val_utils/
 *.onnx
 *.engine
 
-*.pyc
-
-runs/
-val_utils/
-venv/
+# interactive plots
+*.html
