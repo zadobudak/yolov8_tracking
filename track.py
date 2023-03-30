@@ -1,7 +1,26 @@
+from datetime import datetime, timedelta 
+from matplotlib import pyplot as plt
+from matplotlib.animation import FuncAnimation 
+import time
+from threading import Thread
+from os.path import realpath, dirname, join
+import serial
+from libs.objcenter import ObjCenter
+from libs.pid import PID
+from libs.servocontrol import start_link, send_data
 import argparse
 import cv2
 import os
-# limit the number of cpus used by high performance libraries
+objX = 0
+objY = 0
+centerX = 320
+centerY = 240
+outputX = 0
+outputY = 0
+found = False
+found_state = False
+found_states = [False]*3# limit the number of cpus used by high performance libraries
+
 os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["OPENBLAS_NUM_THREADS"] = "1"
 os.environ["MKL_NUM_THREADS"] = "1"
@@ -41,24 +60,123 @@ from yolov8.ultralytics.yolo.utils.plotting import Annotator, colors, save_one_b
 
 from trackers.multi_tracker_zoo import create_tracker
 
+def found_state_selector():
+    global found_state , found_states
+    while True:
+        found_states.pop(0)    
+        found_states.append(found)
+        if found_states.count(True) > 1:
+            found_state = True
+        else:
+            found_state = False
+        # print(found_states)
+        time.sleep(0.05)
+def pid_processX(p, i, d):
+
+    global outputX
+
+    p = PID(p, i, d)
+    p.initialize()
+
+    while True:
+        error = centerX - objX
+        # print(centerCoord,objCoord,error)
+        outputX = p.update(error,found=found_state)
+        time.sleep(0.01)
+
+
+def pid_processY(p, i, d):
+
+    global outputY
+    p = PID(p, i, d)
+    p.initialize()
+
+    while True:
+        
+        error = centerY - objY
+                # print(centerCoord,objCoord,error)
+        outputY = p.update(error,found=found_state)
+        time.sleep(0.01)
+
+
+def send_angl(ser):
+    #start the serial port
+    #time.sleep(5)
+    while True:
+        try:
+            tilt = int(outputY+1500)
+            pan = int(outputX+1500)
+            send_data(ser,pan,tilt)
+        except:
+            pass
+        
+        
+def plotter():
+    time.sleep(2)
+    plt.style.use('seaborn-pastel')
+    x_data, y_data ,time_data = [], [] , []
+
+    figure = plt.figure()
+    # plt.axes(xlim=(datetime.now(), datetime.now() + timedelta(seconds=10)), ylim=(1000, 2000))
+    plt.title("pid output")
+    plt.xlabel("time")
+    plt.ylabel("output ms for servo")
+    linex, = plt.plot_date(time_data, x_data, '-')
+    liney, = plt.plot_date(time_data, y_data, '-')
+    # plt.axes().set_ylim(0, 2500)
+    #limit y axis to 0-2500 for the matplotlib animation
+    plt.ylim(0, 2500)
+    # plt.axes().set_xlim(datetime.now(), datetime.now() + timedelta(seconds=10))
+    def update(frame):
+        x_data.append(outputX+1500)
+        y_data.append(outputY+1500)
+        time_data.append(datetime.now())
+        if len(x_data) > 50:
+            x_data.pop(0)
+            y_data.pop(0)
+            time_data.pop(0)
+        liney.set_data(time_data, y_data)
+        linex.set_data(time_data, x_data)
+        figure.gca().relim()
+        figure.gca().autoscale_view()
+        return linex, liney
+
+    anim = FuncAnimation(figure, update, interval=200 , save_count=50)
+    plt.show()
+    def update(frame):
+        x_data.append(outputX+1500)
+        y_data.append(outputY+1500)
+        time_data.append(datetime.now())
+        if len(x_data) > 50:
+            x_data.pop(0)
+            y_data.pop(0)
+            time_data.pop(0)
+        liney.set_data(time_data, y_data)
+        linex.set_data(time_data, x_data)
+        figure.gca().relim()
+        figure.gca().autoscale_view()
+        return linex, liney
+
+    anim = FuncAnimation(figure, update, interval=200 , save_count=50)
+    plt.show()
 
 @torch.no_grad()
 def run(
-        source='0',
-        yolo_weights=WEIGHTS / 'yolov5m.pt',  # model.pt path(s),
+        source='2',
+        yolo_weights=WEIGHTS / 'best_2.pt',  # model.pt path(s),
         reid_weights=WEIGHTS / 'osnet_x0_25_msmt17.pt',  # model.pt path,
         tracking_method='strongsort',
-        tracking_config=None,
+        tracking_config=ROOT / 'trackers' / "strongsort" / 'configs' / ("strongsort" + '.yaml'),
         imgsz=(640, 640),  # inference size (height, width)
         conf_thres=0.25,  # confidence threshold
         iou_thres=0.45,  # NMS IOU threshold
         max_det=1000,  # maximum detections per image
         device='',  # cuda device, i.e. 0 or 0,1,2,3 or cpu
-        show_vid=False,  # show results
+        show_vid=True,  # show results
         save_txt=False,  # save results to *.txt
         save_conf=False,  # save confidences in --save-txt labels
         save_crop=False,  # save cropped prediction boxes
-        save_trajectories=False,  # save trajectories for each track
+        save_trajectories=True,  # save trajectories for each track
         save_vid=False,  # save confidences in --save-txt labels
         nosave=False,  # do not save images/videos
         classes=None,  # filter by class: --class 0, or --class 0 2 3
@@ -70,15 +188,14 @@ def run(
         name='exp',  # save results to project/name
         exist_ok=False,  # existing project/name ok, do not increment
         line_thickness=2,  # bounding box thickness (pixels)
-        hide_labels=False,  # hide labels
+        hide_labels=True,  # hide labels
         hide_conf=False,  # hide confidences
-        hide_class=False,  # hide IDs
+        hide_class=True,  # hide IDs
         half=False,  # use FP16 half-precision inference
-        dnn=False,  # use OpenCV DNN for ONNX inference
+        dnn=True,  # use OpenCV DNN for ONNX inference
         vid_stride=1,  # video frame-rate stride
         retina_masks=False,
 ):
-
     source = str(source)
     save_img = not nosave and not source.endswith('.txt')  # save inference images
     is_file = Path(source).suffix[1:] in (VID_FORMATS)
@@ -216,8 +333,8 @@ def run(
                 for c in det[:, 5].unique():
                     n = (det[:, 5] == c).sum()  # detections per class
                     s += f"{n} {names[int(c)]}{'s' * (n > 1)}, "  # add to string
-
                 # pass detections to strongsort
+
                 with dt[3]:
                     outputs[i] = tracker_list[i].update(det.cpu(), im0)
                 
@@ -234,8 +351,10 @@ def run(
                         )
                     
                     for j, (output) in enumerate(outputs[i]):
-                        
+                        global bbox,id,objY,objX
                         bbox = output[0:4]
+                        objX = (bbox[0] + bbox[2]) / 2
+                        objY = (bbox[1] + bbox[3]) / 2
                         id = output[4]
                         cls = output[5]
                         conf = output[6]
@@ -265,7 +384,6 @@ def run(
                             if save_crop:
                                 txt_file_name = txt_file_name if (isinstance(path, list) and len(path) > 1) else ''
                                 save_one_box(np.array(bbox, dtype=np.int16), imc, file=save_dir / 'crops' / txt_file_name / names[c] / f'{id}' / f'{p.stem}.jpg', BGR=True)
-                            
             else:
                 pass
                 #tracker_list[i].tracker.pred_n_update_all_tracks()
@@ -277,6 +395,11 @@ def run(
                     windows.append(p)
                     cv2.namedWindow(str(p), cv2.WINDOW_NORMAL | cv2.WINDOW_KEEPRATIO)  # allow window resize (Linux)
                     cv2.resizeWindow(str(p), im0.shape[1], im0.shape[0])
+
+                cv2.circle(im0, (centerX, centerY), 5, (0, 0, 255), -1)
+                # if len(det):
+                #     cv2.circle(im0, (objX, objY), 5, (0, 255, 255), -1)
+
                 cv2.imshow(str(p), im0)
                 if cv2.waitKey(1) == ord('q'):  # 1 millisecond
                     exit()
@@ -300,11 +423,16 @@ def run(
             prev_frames[i] = curr_frames[i]
             
         # Print total time (preprocessing + inference + NMS + tracking)
-        LOGGER.info(f"{s}{'' if len(det) else '(no detections), '}{sum([dt.dt for dt in dt if hasattr(dt, 'dt')]) * 1E3:.1f}ms")
+        # LOGGER.info(f"{s}{'' if len(det) else '(no detections), '}{sum([dt.dt for dt in dt if hasattr(dt, 'dt')]) * 1E3:.1f}ms")
+        global found
+        if len(det):
+            found = True
+        else:
+            found = False
 
     # Print results
     t = tuple(x.t / seen * 1E3 for x in dt)  # speeds per image
-    LOGGER.info(f'Speed: %.1fms pre-process, %.1fms inference, %.1fms NMS, %.1fms {tracking_method} update per image at shape {(1, 3, *imgsz)}' % t)
+    LOGGER.info(f'Speed: %.1fms pre-proocess, %.1fms inference, %.1fms NMS, %.1fms {tracking_method} update per image at shape {(1, 3, *imgsz)}' % t)
     if save_txt or save_vid:
         s = f"\n{len(list((save_dir / 'tracks').glob('*.txt')))} tracks saved to {save_dir / 'tracks'}" if save_txt else ''
         LOGGER.info(f"Results saved to {colorstr('bold', save_dir)}{s}")
@@ -361,5 +489,45 @@ def main(opt):
 
 
 if __name__ == "__main__":
-    opt = parse_opt()
-    main(opt)
+    #tracking thread
+    tracking_thread = Thread(target=run)
+    tracking_thread.daemon = True
+    tracking_thread.start()
+    
+    state_theread = Thread(target=found_state_selector)
+    state_theread.daemon = True
+    state_theread.start() 
+    #pid thread
+    coef = 0.1
+    pidy_thread = Thread(target=pid_processY, args=(0.65*coef, 0.0*coef, 0.02*coef))
+    pidx_thread = Thread(target=pid_processX, args=(0.8*coef, 0.0*coef, 0.005*coef))
+    pidx_thread.daemon = True
+    pidy_thread.daemon = True
+
+    pidy_thread.start()
+    pidx_thread.start()
+    
+    plotter_thread = Thread(target=plotter)
+    plotter_thread.daemon = True
+    plotter_thread.start()
+
+    
+    try:
+        ser = start_link("/dev/ttyUSB0")
+    except:
+        ser = start_link("/dev/ttyUSB1")
+
+    command_thread =  Thread(target=send_angl, args = [ser])
+    command_thread.daemon=True
+
+    command_thread.start()
+
+
+    while True:
+        try:
+            print(found)
+            print(bbox) if found else print("No bbox yet")
+        except:
+            print("No bbox yet")
+            pass
+        time.sleep(1)
