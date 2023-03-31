@@ -175,7 +175,7 @@ def run(
         show_vid=True,  # show results
         save_txt=False,  # save results to *.txt
         save_conf=False,  # save confidences in --save-txt labels
-        save_crop=False,  # save cropped prediction boxes
+        save_crop=True,  # save cropped prediction boxes
         save_trajectories=True,  # save trajectories for each track
         save_vid=False,  # save confidences in --save-txt labels
         nosave=False,  # do not save images/videos
@@ -381,14 +381,9 @@ def run(
                             if save_trajectories and tracking_method == 'strongsort':
                                 q = output[7]
                                 tracker_list[i].trajectory(im0, q, color=color)
-                            if save_crop:
-                                txt_file_name = txt_file_name if (isinstance(path, list) and len(path) > 1) else ''
-                                save_one_box(np.array(bbox, dtype=np.int16), imc, file=save_dir / 'crops' / txt_file_name / names[c] / f'{id}' / f'{p.stem}.jpg', BGR=True)
             else:
-                pass
-                #tracker_list[i].tracker.pred_n_update_all_tracks()
-                
-            # Stream results
+                pass #tracker_list[i].tracker.pred_n_update_all_tracks()
+
             im0 = annotator.result()
             if show_vid:
                 if platform.system() == 'Linux' and p not in windows:
@@ -397,6 +392,23 @@ def run(
                     cv2.resizeWindow(str(p), im0.shape[1], im0.shape[0])
 
                 cv2.circle(im0, (centerX, centerY), 5, (0, 0, 255), -1)
+
+                if save_crop:
+                    time_now = time.time()
+                    try:
+                        if time_now - time_old >= 5:
+                            print(save_dir)
+                            LOGGER.info(save_dir)
+                            save_one_box(np.array((0,0,640,480), dtype=np.int16), im0, file=save_dir / str(datetime.now().strftime("%Y-%m-%d-%H-%M-%S")), BGR=True)
+                            time_old=time_now
+                    except:
+                        time_old=time_now
+                        pass
+                    
+ 
+                        
+
+                
                 # if len(det):
                 #     cv2.circle(im0, (objX, objY), 5, (0, 255, 255), -1)
 
@@ -525,8 +537,11 @@ if __name__ == "__main__":
 
     while True:
         try:
+            #print date and time  with "-" as separator
+            print(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
             print(found)
             print(bbox) if found else print("No bbox yet")
+
         except:
             print("No bbox yet")
             pass
