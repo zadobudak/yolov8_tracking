@@ -13,8 +13,8 @@ import cv2
 import os
 objX = 0
 objY = 0
-centerX = 1920//2
-centerY = 1080//2
+centerX = 1920//4
+centerY = 320
 outputX = 0
 outputY = 0
 found = False
@@ -162,20 +162,20 @@ def plotter():
 
 @torch.no_grad()
 def run(
-        source='2',
-        yolo_weights=WEIGHTS / 'best_2.pt',  # model.pt path(s),
+        source='3',
+        yolo_weights=WEIGHTS / 'yolov8s.pt',  # model.pt path(s),
         reid_weights=WEIGHTS / 'osnet_x0_25_msmt17.pt',  # model.pt path,
-        tracking_method='bytetrack',
-        tracking_config=ROOT / 'trackers' / "bytetrack" / 'configs' / ("bytetrack" + '.yaml'),
+        tracking_method='strongsort',
+        tracking_config=ROOT / 'trackers' / "strongsort" / 'configs' / ("strongsort" + '.yaml'),
         imgsz=(640, 640),  # inference size (height, width)
-        conf_thres=0.15,  # confidence threshold
-        iou_thres=0.20,  # NMS IOU threshold
-        max_det=1,  # maximum detections per image
+        conf_thres=0.25,  # confidence threshold
+        iou_thres=0.40,  # NMS IOU threshold
+        max_det=1000,  # maximum detections per image
         device='',  # cuda device, i.e. 0 or 0,1,2,3 or cpu
         show_vid=True,  # show results
         save_txt=False,  # save results to *.txt
         save_conf=False,  # save confidences in --save-txt labels
-        save_crop=True,  # save cropped prediction boxes
+        save_crop=False,  # save cropped prediction boxes
         save_trajectories=True,  # save trajectories for each track
         save_vid=False,  # save confidences in --save-txt labels
         nosave=False,  # do not save images/videos
@@ -399,7 +399,7 @@ def run(
                         if time_now - time_old >= 5:
                             print(save_dir)
                             LOGGER.info(save_dir)
-                            save_one_box(np.array((0,0,640,480), dtype=np.int16), im0, file=save_dir / str(datetime.now().strftime("%Y-%m-%d-%H-%M-%S")), BGR=True)
+                            save_one_box(np.array((0,0,960,640), dtype=np.int16), im0, file=save_dir / str(datetime.now().strftime("%Y-%m-%d-%H-%M-%S")), BGR=True)
                             time_old=time_now
                     except:
                         time_old=time_now

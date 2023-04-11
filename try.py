@@ -1,28 +1,26 @@
 # Import essential libraries
-import requests
+# import requests
 import cv2
 import numpy as np
-import imutils
+# import imutils
 
 # Replace the below URL with your own. Make sure to add "/shot.jpg" at last.
-url = "https://192.168.6.176:8080/shot.jpg"
-img = cv2.VideoCapture(4, cv2.CAP_DSHOW)
+url = "https://192.168.34.141:8080/video"
+img = cv2.VideoCapture(3)
 
 
 # While loop to continuously fetching data from the Url
 while True:
-    try:
-        ret,im = img.read()
-        print(im.shape)
+    
+    ret,im = img.read()
+    # print(im.shape)
 
-        # img = imutils.resize(img, width=1080, height=1800)
-        cv2.imshow("Android_cam", im)
+    # img = imutils.resize(img, width=1080, height=1800)
+    cv2.imshow('ehe', im)
 
-        # Press Esc key to exit
-        if cv2.waitKey(1) == 27:
-            break
-    except:
-        print('error')
-        pass
+    # Press Esc key to exit
+    if cv2.waitKey(1) == 27:
+        break
+
 
 cv2.destroyAllWindows()
