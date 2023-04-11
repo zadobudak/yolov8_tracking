@@ -11,7 +11,7 @@ import serial
 from libs.objcenter import ObjCenter
 from libs.pid import PID
 from libs.servocontrol import start_link, send_data
-from track import run as track
+
 
 
 objX = 0
@@ -25,7 +25,8 @@ found = False
 
 def obj_center():
 
-    vs = cv2.VideoCapture(2)
+    
+    vs = cv2.VideoCapture("1")
 
     obj = ObjCenter(join(realpath(dirname(__file__)), "haar.xml"))
 
@@ -135,18 +136,12 @@ def plotter():
     anim = FuncAnimation(figure, update, interval=200 , save_count=50)
     plt.show()
     
-track(source="0")
+# track(source="0")
 # TODO : can uset the multiprocessing instead of threading
-detection_thread = Thread(target=track)
+detection_thread = Thread(target=obj_center)
 detection_thread.daemon = True
 detection_thread.start()
-time.sleep(2)
-while True:
-    try:
-        print(bbox)
-    except:
-        pass
-    time.sleep(0.5)
+
 pidy_thread = Thread(target=pid_processY, args=(0.8, 0.5, 0.1))
 pidx_thread = Thread(target=pid_processX, args=(0.8, 0.5, 0.1))
 pidx_thread.daemon = True
@@ -155,20 +150,20 @@ pidy_thread.daemon = True
 pidy_thread.start()
 pidx_thread.start()
 
-try:
-    ser = start_link("/dev/ttyUSB0")
-except:
-    ser = start_link("/dev/ttyUSB1")
+# try:
+#     ser = start_link("/dev/ttyUSB0")
+# except:
+#     ser = start_link("/dev/ttyUSB1")
 
-command_thread =  Thread(target=send_angl, args = [ser])
+# command_thread =  Thread(target=send_angl, args = [ser])
 
-command_thread.daemon=True
+# command_thread.daemon=True
 
-command_thread.start()
+# command_thread.start()
 
-plotter_thread = Thread(target=plotter)
-plotter_thread.daemon = True
-plotter_thread.start()
+# plotter_thread = Thread(target=plotter)
+# plotter_thread.daemon = True
+# plotter_thread.start()
 
 
 
@@ -183,6 +178,6 @@ while True:
         # print("center position x: , y: " ,centerX, centerY)
         print(f"output x:{outputX} y:{outputY}")
     except:
-        ser.close()
+        # ser.close()
         pass
     pass

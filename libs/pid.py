@@ -30,7 +30,7 @@ class PID:
         # grab the current time and calculate delta time
         self.currTime = time.time()
         deltaTime = self.currTime - self.prevTime
-        if found and self.result <= 500 and self.result >= -400:
+        if found and self.result <= 700 and self.result >= -600:
             # delta error
             deltaError = error - self.prevError
 
@@ -50,11 +50,11 @@ class PID:
             self.kP * self.cP,
             self.kI * self.cI,
             self.kD * self.cD])
-        elif found and self.result >= 500:
-            self.result = 500
-        elif found and self.result <= -400:
-            self.result = -400
+        elif found and self.result >= 700:
+            self.result = 700
+        elif found and self.result <= -600:
+            self.result = -600
         else:
-            self.result = self.result
+            self.result = self.result * 0.99
             # sum the terms and return
         return self.result
