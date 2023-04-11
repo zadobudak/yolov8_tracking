@@ -13,8 +13,8 @@ import cv2
 import os
 objX = 0
 objY = 0
-centerX = 320
-centerY = 240
+centerX = 1920//2
+centerY = 1080//2
 outputX = 0
 outputY = 0
 found = False
@@ -104,7 +104,7 @@ def send_angl(ser):
     #time.sleep(5)
     while True:
         try:
-            tilt = int(outputY+1500)
+            tilt = int(outputY+1200)
             pan = int(outputX+1500)
             send_data(ser,pan,tilt)
         except:
@@ -129,7 +129,7 @@ def plotter():
     # plt.axes().set_xlim(datetime.now(), datetime.now() + timedelta(seconds=10))
     def update(frame):
         x_data.append(outputX+1500)
-        y_data.append(outputY+1500)
+        y_data.append(outputY+1200)
         time_data.append(datetime.now())
         if len(x_data) > 50:
             x_data.pop(0)
@@ -165,12 +165,12 @@ def run(
         source='2',
         yolo_weights=WEIGHTS / 'best_2.pt',  # model.pt path(s),
         reid_weights=WEIGHTS / 'osnet_x0_25_msmt17.pt',  # model.pt path,
-        tracking_method='strongsort',
-        tracking_config=ROOT / 'trackers' / "strongsort" / 'configs' / ("strongsort" + '.yaml'),
+        tracking_method='bytetrack',
+        tracking_config=ROOT / 'trackers' / "bytetrack" / 'configs' / ("bytetrack" + '.yaml'),
         imgsz=(640, 640),  # inference size (height, width)
-        conf_thres=0.25,  # confidence threshold
-        iou_thres=0.45,  # NMS IOU threshold
-        max_det=1000,  # maximum detections per image
+        conf_thres=0.15,  # confidence threshold
+        iou_thres=0.20,  # NMS IOU threshold
+        max_det=1,  # maximum detections per image
         device='',  # cuda device, i.e. 0 or 0,1,2,3 or cpu
         show_vid=True,  # show results
         save_txt=False,  # save results to *.txt
@@ -188,9 +188,9 @@ def run(
         name='exp',  # save results to project/name
         exist_ok=False,  # existing project/name ok, do not increment
         line_thickness=2,  # bounding box thickness (pixels)
-        hide_labels=True,  # hide labels
+        hide_labels=False,  # hide labels
         hide_conf=False,  # hide confidences
-        hide_class=True,  # hide IDs
+        hide_class=False,  # hide IDs
         half=False,  # use FP16 half-precision inference
         dnn=True,  # use OpenCV DNN for ONNX inference
         vid_stride=1,  # video frame-rate stride
@@ -422,7 +422,7 @@ def run(
                     vid_path[i] = save_path
                     if isinstance(vid_writer[i], cv2.VideoWriter):
                         vid_writer[i].release()  # release previous video writer
-                    if vid_cap:  # video
+                    if vid_cap:  # vi
                         fps = vid_cap.get(cv2.CAP_PROP_FPS)
                         w = int(vid_cap.get(cv2.CAP_PROP_FRAME_WIDTH))
                         h = int(vid_cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -510,7 +510,7 @@ if __name__ == "__main__":
     state_theread.daemon = True
     state_theread.start() 
     #pid thread
-    coef = 0.1
+    coef = 0.03
     pidy_thread = Thread(target=pid_processY, args=(0.65*coef, 0.0*coef, 0.02*coef))
     pidx_thread = Thread(target=pid_processX, args=(0.8*coef, 0.0*coef, 0.005*coef))
     pidx_thread.daemon = True
@@ -538,9 +538,9 @@ if __name__ == "__main__":
     while True:
         try:
             #print date and time  with "-" as separator
-            print(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-            print(found)
-            print(bbox) if found else print("No bbox yet")
+            # print(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+            print(found_state)
+            # print(bbox) if found else print("No bbox yet")
 
         except:
             print("No bbox yet")
